@@ -1,0 +1,6 @@
+TP en solo ou en binome
+Compilable sur les machines
+1 Fichier par TP ( zip )
+
+Commande : 
+g++ -Wall -O2 <filename> -o <outputname>
