@@ -4,3 +4,4 @@ Compilable sur les machines
 
 Commande : 
 g++ -Wall -O2 <filename> -o <outputname>
+g++ -Wall -O2 -I /usr/include/eigen3 TP2_exo3.cpp -o TP2_exo3
