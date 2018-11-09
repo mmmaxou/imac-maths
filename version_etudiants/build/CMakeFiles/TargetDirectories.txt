@@ -1,0 +1,3 @@
+/home/6im2/mpluchar/Maths/version_etudiants/build/CMakeFiles/edit_cache.dir
+/home/6im2/mpluchar/Maths/version_etudiants/build/CMakeFiles/rebuild_cache.dir
+/home/6im2/mpluchar/Maths/version_etudiants/build/CMakeFiles/stabilisation.dir
