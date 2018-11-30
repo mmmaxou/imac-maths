@@ -17,6 +17,8 @@ utility
 -
 ctime
 -
+algorithm
+-
 exception
 -
 opencv2/core/core.hpp

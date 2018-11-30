@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <utility>   // std::pair
 #include <ctime>
+#include <algorithm>
 #include <exception>
 
 #include <opencv2/core/core.hpp>
@@ -99,6 +100,8 @@ int main(int argc, char **argv)
       pointsToTrack[0].insert(pointsToTrack[0].end(),pointsToTrack[1].begin(),pointsToTrack[1].end());
       pointsToTrack[1].clear();
     }
+    if (pointsToTrack[0].size() < 5) 
+      continue;
 
 
     // tracking process
@@ -131,6 +134,7 @@ int main(int argc, char **argv)
     cv::Mat finalImage;
     frame.copyTo(finalImage);
 
+    /*
     // for all tracked points
     for(uint i= 0; i < initialPoints.size(); i++ ) {
       // draw line and circle
@@ -140,10 +144,11 @@ int main(int argc, char **argv)
         cv::Scalar(255,255,255));
       cv::circle(finalImage, trackedPoints[i], 3, cv::Scalar(0,0,255),-1);
     }
+    */
 
 
     ////////////////////////////////////////////////////////////////////////////////////////////
-    // image stabilization 
+    // image stabilization
 
     // convert opencv to eigen
     Eigen::MatrixXd initialPts(3,initialPoints.size());
@@ -168,6 +173,7 @@ int main(int argc, char **argv)
     currentPts = Hcentering * currentPts;
     initialPts = Hcentering * initialPts;
     
+    
     // 4 Make the system
     Eigen::MatrixXd A = Eigen::MatrixXd::Zero(2*initialPts.cols(), 4);
     Eigen::VectorXd b(2 * initialPts.cols());
@@ -186,29 +192,47 @@ int main(int argc, char **argv)
     }
     
     Eigen::VectorXd x = (A.transpose() * A).inverse() * A.transpose() * b;
-    std::cout << "X: " << x << std::endl;
+    //std::cout << "X: " << x << std::endl;
     
     // 6 Extract rotation
-    
-    
     Eigen::Matrix3d M = Eigen::Matrix3d::Identity();
     M(0, 0) = x(0);
     M(1, 1) = x(0);
     M(0, 1) = x(1);
-    M(1, 0) = -x(1);
+    M(1, 0) = -x(1);   
+    
+    // 8 Enforce Rotation
+    Eigen::JacobiSVD<Eigen::Matrix2d> svd(M.topLeftCorner(2,2), Eigen::ComputeFullU | Eigen::ComputeFullV);
+    M.topLeftCorner(2,2) = svd.matrixU() * svd.matrixV().transpose();
+    
+    // 9 Clamp Rotation
+    double angleMax = 15 * M_PI / 180.0;
+    double angle = std::asin(M(0,1));
+    angle = std::min(std::max(angle, -angleMax), angleMax);
+    M(0, 0) = std::cos(angle);
+    M(0, 1) = std::sin(angle);
+    M(1, 0) = -std::sin(angle);
+    M(1, 1) = std::cos(angle);
+    
     // 6 Extract translation
     M(0, 2) = x(2);
     M(1, 2) = x(3);
     
-    
+    // 9 Clamp translation
+    double interval = 100.f;
+    M(0, 2) = std::min(M(0, 2), interval);
+    M(0, 2) = std::max(M(0, 2), -interval);
+    M(1, 2) = std::min(M(1, 2), interval);
+    M(1, 2) = std::max(M(1, 2), -interval);
     
     // 1 Zoom
-    double alpha = 0.7;
+    double alpha = 1.4;
     Eigen::Matrix3d zoom = Eigen::Matrix3d::Identity();
     zoom(0, 0) = zoom(1, 1) = alpha;    
     
-    // 7 Use M    
-    H = HcenteringInv * M * Hcentering;
+    // 7 Use M
+    double epsilon = 0.15;
+    H = epsilon*Eigen::Matrix3d::Identity() + (1-epsilon)*HcenteringInv * M * Hcentering;
     
     // if not enough points to track
     if(currentPts.cols() < 2)
